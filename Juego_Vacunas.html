@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detective de Vacunas: Misión Castilla-La Mancha</title>
+    <style>
+        :root {
+            --primary: #005A9C;
+            --secondary: #00A3E0;
+            --success: #28a745;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+            --dark: #343a40;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #e9ecef;
+            margin: 0;
+            padding: 20px;
+            color: var(--dark);
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .game-area {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .case-panel {
+            flex: 2;
+            padding: 20px;
+            border-right: 1px solid #dee2e6;
+            min-width: 300px;
+        }
+        .resources-panel {
+            flex: 1;
+            padding: 20px;
+            background-color: var(--light);
+            min-width: 250px;
+        }
+        .patient-card {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 5px solid #ffc107;
+        }
+        .table-container {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        th, td {
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: var(--secondary);
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        button.option-btn {
+            padding: 12px;
+            border: 2px solid var(--secondary);
+            background: white;
+            color: var(--dark);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            text-align: left;
+        }
+        button.option-btn:hover:not([disabled]) {
+            background-color: var(--secondary);
+            color: white;
+        }
+        button.action-btn {
+            padding: 10px 20px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 20px;
+        }
+        button.action-btn:hover {
+            background-color: #004080;
+        }
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .feedback.correct {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        .feedback.incorrect {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        .links a {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--secondary);
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+        .links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🕵️‍♂️ Detective de Vacunas</h1>
+        <p>Misión: Castilla-La Mancha (Caso <span id="level-indicator">1</span> de 20)</p>
+    </header>
+
+    <div class="game-area">
+        <div class="case-panel">
+            <h2 id="case-title">Cargando caso...</h2>
+            <div class="patient-card" id="patient-info"></div>
+            
+            <div id="table-wrapper" class="table-container"></div>
+
+            <h3 id="question-text">¿Qué actuación debemos seguir?</h3>
+            <div class="options-container" id="options"></div>
+
+            <div id="feedback-area" class="feedback"></div>
+
+            <button class="action-btn" id="next-btn" style="display: none;" onclick="nextCase()">Siguiente Caso ➡️</button>
+        </div>
+
+        <div class="resources-panel">
+            <h3>📚 Bibliografía Oficial</h3>
+            <div class="links">
+                <a href="https://sanidad.castillalamancha.es/ciudadanos/vacunacion/calendario-vacunaciones" target="_blank">📄 Calendario SESCAM</a>
+                <a href="https://vacunasaep.org/documentos/manual/cap-11" target="_blank">📘 Manual AEP - Cap 11</a>
+                <a href="https://vacunasaep.org/documentos/manual/cap-8" target="_blank">📘 Manual AEP - Cap 8 (Intervalos)</a>
+                <a href="https://www.sanidad.gob.es/areas/promocionPrevencion/vacunaciones/profesionales/home.htm" target="_blank">🌐 Min. Sanidad - Profesionales</a>
+            </div>
+            <hr>
+            <h4>Puntuación</h4>
+            <p>Aciertos: <strong id="score">0</strong> / 20</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const cases = [
+        // CASOS 1-10 (Nivel Básico e Intermedio)
+        {
+            title: "Caso 1: Esteban (Colombia)",
+            info: "<strong>Edad:</strong> 11 años <br><strong>Fecha Nacimiento:</strong> 04/06/2014<br><strong>Procedencia:</strong> Colombia",
+            table: `<table>
+                <tr><th>Vacuna</th><th>Dosis</th><th>Fecha</th><th>Lote</th></tr>
+                <tr><td>Hepatitis B</td><td>Adicional</td><td>4-6-2014</td><td>UVA13032</td></tr>
+                <tr><td>Pentavalente PAI</td><td>Primera a Tercera</td><td>2014-2015</td><td>Varios</td></tr>
+                <tr><td>Triple Viral</td><td>Primera</td><td>11-8-2015</td><td>013N4002A</td></tr>
+                <tr><td>COVID SINOVAC</td><td>Primera</td><td>26-3-2022</td><td>B202108115</td></tr>
+            </table>`,
+            question: "Según las instrucciones de Castilla-La Mancha, ¿qué vacunas le faltarían?",
+            options: [
+                "Solo la segunda dosis de Triple Viral y actualizar Tétanos.",
+                "Falta Varicela (2 dosis), Meningitis B (2 dosis, no financiada), y al cumplir 12 años seguir calendario actual.",
+                "Reiniciar pauta de Hepatitis B porque los lotes no son europeos."
+            ],
+            correctIndex: 1,
+            resolution: "<strong>Resolución:</strong> ¡Correcto! Faltan dos dosis de Varicela (separadas por 12 semanas, mínimo 4). Faltan dos dosis de Meningitis B (los padres deben comprarla). Este año que cumple 12, deberá seguir el calendario actual y completar vacunas."
+        },
+        {
+            title: "Caso 2: Robert (Colombia)",
+            info: "<strong>Edad:</strong> 4 años <br><strong>Fecha Nacimiento:</strong> 30/11/2021<br><strong>Nota:</strong> Los lotes de las primeras vacunas no están apuntados correctamente, pero el documento está firmado por su médico en origen.",
+            table: `<table>
+                <tr><th>Vacuna</th><th>Dosis</th><th>Fecha</th><th>Lote</th></tr>
+                <tr><td>Hepatitis B</td><td>1ª, 2ª, 3ª</td><td>2021-2022</td><td>-</td></tr>
+                <tr><td>DTP</td><td>1ª, 2ª, 3ª, Refuerzo</td><td>2022-2023</td><td>-</td></tr>
+                <tr><td>Varicela</td><td>Primera</td><td>16-3-2023</td><td>-</td></tr>
+            </table>`,
+            question: "¿Qué hacemos con la falta de lotes y qué le falta por administrar?",
+            options: [
+                "Se validan las dosis, pero solo se administra Meningitis C.",
+                "Las dosis sin lote no cuentan. Hay que reiniciar todo el calendario.",
+                "Al estar firmadas por un médico, son válidas. Le falta Meningitis B y las que correspondan por su edad (4 años) según calendario."
+            ],
+            correctIndex: 2,
+            resolution: "<strong>Resolución:</strong> ¡Excelente! Al estar el documento firmado por un médico, no pasa nada por la falta de lotes. Se debe continuar el calendario de Castilla-La Mancha para sus 4 años y le faltarían las dosis de Meningitis B."
+        },
+        {
+            title: "Caso 3: Duda - Vacuna VPH",
+            info: "<strong>Paciente:</strong> Mujer de 26 años sin factores de riesgo.<br><strong>Consulta:</strong> Enfermera duda cuántas dosis de VPH administrar.",
+            table: "",
+            question: "¿Qué le respondes sobre la vacunación VPH en esta paciente?",
+            options: [
+                "Fuera del límite financiado (hasta 22 años). Si se vacuna por privado, a la población inmunocompetente le corresponde 1 dosis.",
+                "Corresponden 3 dosis al ser mayor de 25 años, totalmente financiadas.",
+                "Corresponde 1 sola dosis financiada por el SESCAM independientemente de la edad."
+            ],
+            correctIndex: 0,
+            resolution: "<strong>Resolución:</strong> ¡Perfecto! En Castilla-La Mancha se amplía hasta los 22 años (inclusive) de forma sistemática. Al tener 26 sin riesgo, no está financiada. Si se vacuna, a los inmunocompetentes les corresponde 1 sola dosis."
+        },
+        {
+            title: "Caso 4: Intervalos Mínimos",
+            info: "<strong>Paciente:</strong> Niño de 15 meses.<br><strong>Situación:</strong> Se le administró la vacuna de la Varicela hace 15 días en una clínica privada. Hoy acude para ponerle la Triple Viral (SRP).",
+            table: "",
+            question: "¿Podemos administrar hoy la vacuna Triple Viral?",
+            options: [
+                "Sí, al ser vacunas diferentes no hay problema de interferencia inmunológica.",
+                "No. Al ser ambas vacunas de virus vivos atenuados inyectables, debemos esperar al menos 4 semanas desde la Varicela.",
+                "Sí, siempre y cuando se la administremos en una extremidad diferente."
+            ],
+            correctIndex: 1,
+            resolution: "<strong>Resolución:</strong> ¡Correcto! Las vacunas inyectables de virus vivos atenuados (como Triple Viral y Varicela) deben administrarse el mismo día o separadas por un intervalo mínimo de 4 semanas."
+        },
+        {
+            title: "Caso 5: Adulto de Riesgo",
+            info: "<strong>Paciente:</strong> Hombre de 45 años, recién diagnosticado de Diabetes Mellitus.<br><strong>Situación:</strong> Acude a consulta pero desconoce por completo su estado vacunal y no aporta ningún tipo de cartilla.",
+            table: "",
+            question: "¿Cómo actuamos ante esta pauta de vacunación desconocida?",
+            options: [
+                "Solo le ponemos el recuerdo de Tétanos y la vacuna de la gripe en temporada.",
+                "Le realizamos una serología de todas las enfermedades antes de hacer nada.",
+                "Dosis no registrada es dosis no puesta. Iniciamos primovacunación con Td (3 dosis: 0, 1, 6 meses), Neumococo, y Hepatitis B (riesgo por DM)."
+            ],
+            correctIndex: 2,
+            resolution: "<strong>Resolución:</strong> ¡Muy bien! En adultos con historia de vacunación desconocida se asume que no están vacunados. Hay que iniciar la pauta de Td, y al ser grupo de riesgo (diabético) administrar Neumococo, Hepatitis B y las estacionales."
+        },
+        {
+            title: "Caso 6: Elena (Ucrania) - Vacunas 'de palabra'",
+            info: "<strong>Edad:</strong> 6 años <br><strong>Fecha Nacimiento:</strong> 10/02/2020<br><strong>Procedencia:</strong> Ucrania<br><strong>Nota:</strong> Los padres aseguran que le pusieron la Triple Viral a los 12 meses, pero no consta en este documento oficial.",
+            table: `<table>
+                <tr><th>Vacuna (Traducción)</th><th>Dosis</th><th>Fecha</th><th>Lote</th></tr>
+                <tr><td>Hepatitis B</td><td>1ª, 2ª, 3ª</td><td>2020-2021</td><td>A345/B</td></tr>
+                <tr><td>DTPa-IPV-Hib</td><td>1ª, 2ª, 3ª</td><td>2020-2021</td><td>Varios</td></tr>
+            </table>`,
+            question: "¿Qué hacemos con la vacuna Triple Viral que los padres dicen de palabra que tiene puesta?",
+            options: [
+                "Dosis no registrada es dosis no puesta. Se debe iniciar pauta de Triple Viral (2 dosis) según calendario acelerado.",
+                "La anotamos en el sistema del SESCAM basándonos en la declaración jurada de los padres.",
+                "Confiamos en la palabra de los padres y solo le administramos la dosis de recuerdo de los 6 años."
+            ],
+            correctIndex: 0,
+            resolution: "<strong>Resolución:</strong> ¡Exacto! Una máxima en vacunación es que 'dosis no documentada es dosis no administrada'. Al no estar en la cartilla oficial, no se contabiliza y hay que ponerla."
+        },
+        {
+            title: "Caso 7: Mateo (Ecuador)",
+            info: "<strong>Edad:</strong> 3 años <br><strong>Fecha Nacimiento:</strong> 15/05/2023<br><strong>Procedencia:</strong> Ecuador",
+            table: `<table>
+                <tr><th>Vacuna</th><th>Dosis</th><th>Fecha</th><th>Lote</th></tr>
+                <tr><td>Rotavirus</td><td>1ª y 2ª</td><td>2023</td><td>ROT12</td></tr>
+                <tr><td>Pentavalente</td><td>1ª, 2ª, 3ª</td><td>2023</td><td>PENT44</td></tr>
+                <tr><td>SRP (Triple Viral)</td><td>Primera</td><td>10-04-2024</td><td>SRP900X</td></tr>
+            </table>`,
+            question: "Observando las fechas del calendario de Mateo, ¿es válida la dosis de SRP (Triple Viral) administrada el 10-04-2024?",
+            options: [
+                "Sí, la dosis está correctamente registrada con su lote y fecha exacta.",
+                "No es válida, ya que se administró antes de los 12 meses de edad. Hay que pautar una nueva dosis.",
+                "Sí, pero en España habrá que ponerle un refuerzo adelantado a los 4 años."
+            ],
+            correctIndex: 1,
+            resolution: "<strong>Resolución:</strong> ¡Correcto! Si calculamos la edad, se la pusieron con 10 meses. La vacuna SRP (Triple Viral) puesta antes de los 12 meses no contabiliza en el calendario sistemático por interferencia con los anticuerpos maternos."
+        },
+        {
+            title: "Caso 8: Emily (EE.UU.) - Transcripción",
+            info: "<strong>Edad:</strong> 2 años <br><strong>Procedencia:</strong> Estados Unidos<br><strong>Nota:</strong> Aporta la tarjeta del CDC en inglés.",
+            table: `<table>
+                <tr><th>Vaccine</th><th>Dose</th><th>Date</th><th>Lot Number</th></tr>
+                <tr><td>DTaP</td><td>1, 2, 3</td><td>2024</td><td>-</td></tr>
+                <tr><td>PCV15</td><td>1, 2, 3</td><td>2024</td><td>-</td></tr>
+                <tr><td>IPV</td><td>1, 2, 3</td><td>2024</td><td>-</td></tr>
+            </table>`,
+            question: "Necesitas transcribir la cartilla al SESCAM. ¿A qué vacunas corresponden las siglas DTaP, IPV y PCV?",
+            options: [
+                "DTaP: Difteria y Tétanos / IPV: Papilomavirus / PCV: Parotiditis.",
+                "DTaP: Tétanos / IPV: Polio Oral (VOP) / PCV: Varicela.",
+                "DTaP: Difteria, Tétanos y Tosferina acelular / IPV: Polio Inactivada / PCV: Neumococo Conjugada."
+            ],
+            correctIndex: 2,
+            resolution: "<strong>Resolución:</strong> ¡Perfecto! Dominar las siglas internacionales es vital: DTaP (Diphtheria, Tetanus, acellular Pertussis), IPV (Inactivated Polio Vaccine) y PCV (Pneumococcal Conjugate Vaccine)."
+        },
+        {
+            title: "Caso 9: Adolescente y Meningococo",
+            info: "<strong>Paciente:</strong> Adolescente de 16 años, nuevo residente en Castilla-La Mancha.<br><strong>Situación:</strong> Revisando su historial, consta una dosis de vacuna frente al Meningococo C a los 12 meses de vida, pero nada más.",
+            table: "",
+            question: "¿Qué vacuna frente al meningococo le faltaría según el calendario acelerado actual?",
+            options: [
+                "Le falta una dosis de la vacuna tetravalente MenACWY, recomendada como rescate de la dosis de los 12 años.",
+                "Ninguna, con la dosis de los 12 meses está correctamente inmunizado de por vida.",
+                "Le corresponde otra dosis de Meningococo C exclusivamente para hacer refuerzo."
+            ],
+            correctIndex: 0,
+            resolution: "<strong>Resolución:</strong> ¡Correcto! En Castilla-La Mancha se administra la vacuna tetravalente (MenACWY) a los 12 años. A los adolescentes no vacunados previamente con ella, se les debe realizar una captación/rescate."
+        },
+        {
+            title: "Caso 10: Vacunación en Embarazada",
+            info: "<strong>Paciente:</strong> Mujer de 32 años, embarazada de 28 semanas.<br><strong>Situación:</strong> Acude preguntando qué vacunas debe ponerse.",
+            table: "",
+            question: "¿Qué pauta vacunal es prioritaria y correcta en este momento de su embarazo?",
+            options: [
+                "Administrar Triple Viral y Varicela para proteger al feto inmediatamente.",
+                "No se le debe poner ninguna vacuna inyectable hasta después del parto.",
+                "Administrar dTpa (Tosferina) preferentemente entre la semana 27 y 32, además de Gripe/COVID-19 si es temporada."
+            ],
+            correctIndex: 2,
+            resolution: "<strong>Resolución:</strong> ¡Muy bien! En cada embarazo se debe administrar la vacuna dTpa (entre la semana 27 y 36) para proteger al bebé contra la tosferina, junto con Gripe y COVID-19 en temporada. Las vacunas de virus vivos están contraindicadas."
+        },
+        
+        // CASOS 11-20 (Nivel Avanzado - Dificultad Incrementada)
+        {
+            title: "Caso 11: Amadou (Senegal) - Transcripción Dificultad Alta",
+            info: "<strong>Edad:</strong> 4 años<br><strong>Procedencia:</strong> Senegal (Historial en francés)",
+            table: `<table>
+                <tr><th>Vaccin</th><th>Dose</th><th>Date</th></tr>
+                <tr><td>BCG</td><td>Unique</td><td>10-01-2022</td></tr>
+                <tr><td>VPO</td><td>1, 2, 3</td><td>2022</td></tr>
+                <tr><td>ROR</td><td>1ère</td><td>15-02-2023</td></tr>
+            </table>`,
+            question: "Al transcribir el calendario, encuentras las siglas 'ROR'. ¿A qué vacuna equivale en España?",
+            options: [
+                "Rotavirus (ROtaRix).",
+                "Triple Viral (Rougeole, Oreillons, Rubéole -> Sarampión, Rubeola, Parotiditis).",
+                "Rabia (Rabies Oral Recombinant)."
+            ],
+            correctIndex: 1,
+            resolution: "<strong>Resolución:</strong> ¡Correcto! En calendarios francófonos, ROR significa Rougeole (Sarampión), Oreillons (Parotiditis) y Rubéole (Rubeola). Es nuestra Triple Viral."
+        },
+        {
+            title: "Caso 12: Duda - Intervalos Primovacunación Adulto",
+            info: "<strong>Paciente:</strong> Hombre de 35 años procedente de Mali, sin antecedentes de vacunación.<br><strong>Situación:</strong> Le administraste la 1ª dosis de Td (Tétanos-Difteria) y debes citarlo para la 2ª.",
+            table: "",
+            question: "¿Cuál es el intervalo mínimo de tiempo que debe transcurrir entre la 1ª y la 2ª dosis de Td en un adulto?",
+            options: [
+                "4 semanas (1 mes).",
+                "6 meses.",
+                "1 semana."
+            ],
+            correctIndex: 0,
+            resolution: "<strong>Resolución:</strong> ¡Exacto! En la primovacunación de adultos, el intervalo entre la primera y la segunda dosis de Td es de 4 semanas (1 mes). La tercera dosis será a los 6 meses de la segunda."
+        },
+        {
+            title: "Caso 13: Valeria (Venezuela) - Pauta Interrumpida",
+            info: "<strong>Edad:</strong> 14 años<br><strong>Procedencia:</strong> Venezuela",
+            table: `<table>
+                <tr><th>Vacuna</th><th>Dosis</th><th>Fecha</th></tr>
+                <tr><td>Hepatitis B</td><td>1ª</td><td>10-05-2012</td></tr>
+                <tr><td>Hepatitis B</td><td>2ª</td><td>15-07-2012</td></tr>
+                <tr><td colspan="3"><em>(No hay registro de 3ª dosis de Hepatitis B)</em></td></tr>
+            </table>`,
+            question: "Le falta la 3ª dosis de Hepatitis B desde hace 14 años. ¿Qué hacemos?",
+            options: [
+                "Se administra solo la 3ª dosis. Las dosis previas son válidas sin importar el tiempo transcurrido.",
+                "Al haber pasado más de 10 años, el sistema inmune 'olvida'. Se debe reiniciar la pauta completa de 3 dosis.",
+                "Se le extrae serología obligatoria para ver si generó anticuerpos antes de hacer nada."
+            ],
+            correctIndex: 0,
+            resolution: "<strong>Resolución:</strong> ¡Muy bien! En vacunación sistemática: NO se reinician pautas. 'Dosis puesta, dosis que cuenta'. Solo hay que administrar la 3ª dosis faltante."
+        },
+        {
+            title: "Caso 14: Duda - Paciente Inmunodeprimido",
+            info: "<strong>Paciente:</strong> Varón de 42 años con Enfermedad de Crohn en tratamiento activo con fármacos biológicos (inmunosupresores).<br><strong>Situación:</strong> Va a viajar a Brasil y te pide que le administres la vacuna de la Fiebre Amarilla y un refuerzo de Triple Viral.",
+            table: "",
+            question: "¿Puedes administrarle estas vacunas?",
+            options: [
+                "Sí, siempre y cuando se administren el mismo día en brazos distintos.",
+                "No, las vacunas de virus vivos atenuados (como Fiebre Amarilla y Triple Viral) están fuertemente contraindicadas en pacientes inmunodeprimidos.",
+                "Sí, pero reduciendo la dosis a la mitad para evitar eventos adversos."
+            ],
+            correctIndex: 1,
+            resolution: "<strong>Resolución:</strong> ¡Correcto! Las vacunas de virus vivos atenuados pueden causar la enfermedad en pacientes inmunodeprimidos. Están completamente contraindicadas."
+        },
+        {
+            title: "Caso 15: Liam (Reino Unido) - Desajuste de Calendario",
+            info: "<strong>Edad:</strong> 15 meses<br><strong>Procedencia:</strong> Reino Unido",
+            table: `<table>
+                <tr><th>Vaccine</th><th>Dose</th><th>Age Given</th></tr>
+                <tr><td>6-in-1 (DTaP/IPV/Hib/HepB)</td><td>1st, 2nd, 3rd</td><td>8 weeks, 12 weeks, 16 weeks</td></tr>
+                <tr><td>MenB</td><td>1st, 2nd</td><td>8 weeks, 16 weeks</td></tr>
+            </table>`,
+            question: "En Reino Unido completan la primovacunación Hexavalente (6-in-1) muy pronto (2, 3 y 4 meses). Ahora tiene 15 meses y reside en CLM. ¿Qué gran dosis de refuerzo del primer año le falta transcribir/administrar según nuestro calendario?",
+            options: [
+                "Le falta iniciar la pauta del Rotavirus.",
+                "Solo le falta la Triple Viral, ya que la Hexavalente está completa con 3 dosis.",
+                "Le falta el refuerzo de los 11 meses de Hexavalente, además de la Triple Viral (12m), MenC (12m) y Neumococo (11m)."
+            ],
+            correctIndex: 2,
+            resolution: "<strong>Resolución:</strong> ¡Perfecto! El calendario español pauta Hexavalente a los 2, 4 y un refuerzo clave a los 11 meses. Liam no lo tiene (en UK dan el refuerzo más tarde). Necesita ponerse al día con el refuerzo de Hexavalente y las vacunas del año (SRP, MenC, Neumococo)."
+        },
+        {
+            title: "Caso 16: Duda Trampa - Vacuna VPH en Varones",
+            info: "<strong>Paciente:</strong> Chico de 19 años, sano, inmunocompetente.<br><strong>Situación:</strong> Revisa su historia y consta que recibió 1 única dosis de vacuna VPH (Gardasil 9) a los 15 años en otra comunidad autónoma. No tiene más dosis.",
+            table: "",
+            question: "Basándote en las recomendaciones más actuales de captura del SESCAM (hasta 22 años), ¿qué le corresponde?",
+            options: [
+                "Se considera correctamente vacunado. A la población inmunocompetente le corresponde 1 sola dosis.",
+                "Debe reiniciar la pauta, ya que han pasado 4 años desde la primera dosis.",
+                "Le falta la 2ª dosis para completar la pauta, ya que a partir de los 15 años son siempre 2 dosis mínimas."
+            ],
+            correctIndex: 0,
+            resolution: "<strong>Resolución:</strong> ¡Excelente! Esta era difícil. Según la última actualización, la pauta de VPH en población sana e inmunocompetente se ha simplificado a 1 SOLA DOSIS (tanto chicas como chicos). ¡Ya está inmunizado!"
+        },
+        {
+            title: "Caso 17: Error Administrativo - Rotavirus",
+            info: "<strong>Paciente:</strong> Bebé de 8 meses (34 semanas de vida) de Rumanía.<br><strong>Situación:</strong> Los padres han comprado la vacuna del Rotavirus en la farmacia porque en su país no se la pusieron y quieren empezar hoy la pauta.",
+            table: "",
+            question: "¿Debes administrarle hoy la primera dosis de Rotavirus?",
+            options: [
+                "Sí, siempre que los padres firmen el consentimiento informado.",
+                "No. Está totalmente contraindicado iniciar o administrar dosis de Rotavirus a esta edad por riesgo de invaginación intestinal.",
+                "Sí, pero en lugar de pauta de 2 o 3 dosis, se le administrará solo 1 dosis por ser mayor."
+            ],
+            correctIndex: 1,
+            resolution: "<strong>Resolución:</strong> ¡Muy bien! Las vacunas del Rotavirus tienen límites de edad estrictos (max. 24 o 32 semanas de vida según la marca) para terminar la pauta, debido al riesgo de invaginación intestinal. A los 8 meses no se puede iniciar."
+        },
+        {
+            title: "Caso 18: Chloé (Francia) - Transcripción",
+            info: "<strong>Edad:</strong> 13 años<br><strong>Procedencia:</strong> Francia",
+            table: `<table>
+                <tr><th>Vaccin</th><th>Dose</th><th>Date</th></tr>
+                <tr><td>Infanrix Hexa</td><td>1, 2, 3</td><td>2013-2014</td></tr>
+                <tr><td>dTcaPolio</td><td>Rappel</td><td>10-09-2019 (a los 6 años)</td></tr>
+            </table>`,
+            question: "La cartilla marca un refuerzo llamado 'dTcaPolio'. ¿A qué vacuna equivale en España?",
+            options: [
+                "Difteria, Tétanos, Tosferina (baja carga) + Polio inactivada.",
+                "Difteria, Tifus, Cólera y Polio oral.",
+                "Tétanos, Tosferina celular alta carga y Polio."
+            ],
+            correctIndex: 0,
+            resolution: "<strong>Resolución:</strong> ¡Correcto! La 'd' y la 'ca' en minúsculas indican baja carga antigénica de difteria y tosferina (componente acelular), combinada con Tétanos y Polio inactivada."
+        },
+        {
+            title: "Caso 19: Adulto de Riesgo - EPOC",
+            info: "<strong>Paciente:</strong> Mujer de 67 años, fumadora con EPOC severo.<br><strong>Situación:</strong> Acude a revisión en otoño. Su última vacuna de Tétanos fue hace 15 años.",
+            table: "",
+            question: "¿Qué vacunas estarían indicadas en esta paciente por su edad y patología?",
+            options: [
+                "Gripe, COVID-19, Neumococo, Herpes Zóster, Virus Sincitial Respiratorio (VRS) y recuerdo de Td.",
+                "Solamente la Gripe estacional y una dosis de Td.",
+                "Meningococo B, Triple Viral y Neumococo."
+            ],
+            correctIndex: 0,
+            resolution: "<strong>Resolución:</strong> ¡Excelente! Por edad (>65) y riesgo (EPOC) le corresponde el paquete completo del adulto: Neumococo, Herpes Zóster, estacionales (Gripe/COVID), VRS (según nueva campaña) y actualizar el Tétanos (Td) que caducó hace 5 años."
+        },
+        {
+            title: "Caso 20: El Máster Detective - Cero Papeles",
+            info: "<strong>Edad:</strong> 5 años<br><strong>Procedencia:</strong> Desconocida, sin ningún registro médico previo.<br><strong>Situación:</strong> Los padres juran que le pusieron 'todo lo necesario de bebé', pero no tienen ni un solo papel.",
+            table: "",
+            question: "Aplicando todo lo aprendido, ¿qué vacunas de rescate le administrarías HOY en su primera visita (1ª visita calendario acelerado)?",
+            options: [
+                "Nada, se le hace extracción de sangre para mirar anticuerpos de todo.",
+                "Hexavalente (1ª dosis), Neumococo (1ª dosis), Triple Viral (1ª dosis), Varicela (1ª dosis) y Meningococo C (1ª dosis).",
+                "Solo Tétanos y Polio, y citar en un mes para el resto."
+            ],
+            correctIndex: 1,
+            resolution: "<strong>Resolución:</strong> ¡Felicidades, eres un experto! Dosis no registrada = Dosis no puesta. En la primera visita de rescate para un niño de 5 años se agrupan: Hexavalente, Neumococo, MenC, y las víricas (Triple Viral y Varicela). A partir de ahí, se programan los intervalos mínimos para las siguientes dosis."
+        }
+    ];
+
+    let currentCaseIndex = 0;
+    let score = 0;
+
+    function loadCase() {
+        const currentCase = cases[currentCaseIndex];
+        document.getElementById('level-indicator').innerText = currentCaseIndex + 1;
+        document.getElementById('case-title').innerText = currentCase.title;
+        document.getElementById('patient-info').innerHTML = currentCase.info;
+        
+        const tableWrapper = document.getElementById('table-wrapper');
+        if (currentCase.table) {
+            tableWrapper.style.display = 'block';
+            tableWrapper.innerHTML = currentCase.table;
+        } else {
+            tableWrapper.style.display = 'none';
+        }
+
+        document.getElementById('question-text').innerText = currentCase.question;
+        
+        const optionsContainer = document.getElementById('options');
+        optionsContainer.innerHTML = '';
+        currentCase.options.forEach((opt, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerHTML = opt;
+            btn.onclick = () => checkAnswer(index, btn);
+            optionsContainer.appendChild(btn);
+        });
+
+        document.getElementById('feedback-area').className = 'feedback';
+        document.getElementById('feedback-area').innerHTML = '';
+        document.getElementById('next-btn').style.display = 'none';
+    }
+
+    function checkAnswer(selectedIndex, btnElement) {
+        const currentCase = cases[currentCaseIndex];
+        const feedbackArea = document.getElementById('feedback-area');
+        
+        const allButtons = document.querySelectorAll('.option-btn');
+        allButtons.forEach(btn => btn.disabled = true);
+
+        if (selectedIndex === currentCase.correctIndex) {
+            btnElement.style.backgroundColor = 'var(--success)';
+            btnElement.style.color = 'white';
+            feedbackArea.className = 'feedback correct';
+            feedbackArea.innerHTML = '<strong>¡Acertaste! 🎯</strong><br><br>' + currentCase.resolution;
+            score++;
+            document.getElementById('score').innerText = score;
+        } else {
+            btnElement.style.backgroundColor = 'var(--danger)';
+            btnElement.style.color = 'white';
+            allButtons[currentCase.correctIndex].style.border = '2px solid var(--success)';
+            feedbackArea.className = 'feedback incorrect';
+            feedbackArea.innerHTML = '<strong>Incorrecto ❌</strong><br><br>Repasa la normativa: <br>' + currentCase.resolution;
+        }
+
+        if (currentCaseIndex < cases.length - 1) {
+            document.getElementById('next-btn').style.display = 'block';
+        } else {
+            document.getElementById('next-btn').style.display = 'block';
+            document.getElementById('next-btn').innerText = 'Finalizar Juego 🏆';
+            document.getElementById('next-btn').onclick = showFinalScore;
+        }
+    }
+
+    function nextCase() {
+        currentCaseIndex++;
+        loadCase();
+    }
+
+    function showFinalScore() {
+        document.getElementById('case-title').innerText = "¡Misión Completada!";
+        document.getElementById('patient-info').innerHTML = `Has terminado todos los niveles con un puntaje de <strong>${score} de ${cases.length}</strong>. ¡Enhorabuena, Detective Jefe de Vacunas!`;
+        document.getElementById('table-wrapper').style.display = 'none';
+        document.getElementById('question-text').style.display = 'none';
+        document.getElementById('options').style.display = 'none';
+        document.getElementById('feedback-area').style.display = 'none';
+        document.getElementById('next-btn').style.display = 'none';
+    }
+
+    loadCase();
+</script>
+
+</body>
+</html>
